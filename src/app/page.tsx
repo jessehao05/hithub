@@ -1,3 +1,4 @@
+import { connection } from 'next/server';
 import { Heatmap } from '@/components/heatmap';
 import { getMinutesByDate, getUserByUsername } from '@/db/queries';
 import { buildWeeks, calendarRange, formatHours } from '@/lib/heatmap';
@@ -6,6 +7,10 @@ import { buildWeeks, calendarRange, formatHours } from '@/lib/heatmap';
 const USERNAME = 'jesse';
 
 export default async function Home() {
+  // Render per request. Without this the page prerenders at build time, which
+  // would freeze both the activity data and `today` at whenever the build ran.
+  await connection();
+
   const user = await getUserByUsername(USERNAME);
   if (!user) {
     return (
