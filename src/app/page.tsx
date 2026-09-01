@@ -1,10 +1,9 @@
+import Link from 'next/link';
 import { connection } from 'next/server';
 import { Heatmap } from '@/components/heatmap';
 import { getMinutesByDate, getUserByUsername } from '@/db/queries';
-import { buildWeeks, calendarRange, formatHours } from '@/lib/heatmap';
-
-// Hardcoded until auth lands and the grid moves to /u/[username].
-const USERNAME = 'jesse';
+import { buildWeeks, calendarRange, formatHours, today } from '@/lib/heatmap';
+import { CURRENT_USERNAME as USERNAME } from '@/lib/user';
 
 export default async function Home() {
   // Render per request. Without this the page prerenders at build time, which
@@ -23,16 +22,24 @@ export default async function Home() {
   }
 
   // One `today` for both, so the queried range and the rendered grid can't disagree.
-  const today = new Date();
-  const { from, to } = calendarRange(today);
+  const currentDay = today();
+  const { from, to } = calendarRange(currentDay);
   const minutesByDate = await getMinutesByDate(user.id, from, to);
-  const weeks = buildWeeks(minutesByDate, today);
+  const weeks = buildWeeks(minutesByDate, currentDay);
 
   const totalMinutes = [...minutesByDate.values()].reduce((sum, m) => sum + m, 0);
 
   return (
     <main className="mx-auto w-full max-w-4xl p-8">
-      <h1 className="text-xl font-semibold">{user.username}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">{user.username}</h1>
+        <Link
+          href="/new"
+          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium"
+        >
+          Log a session
+        </Link>
+      </div>
 
       <section className="mt-6 rounded-md border border-border p-4">
         <h2 className="mb-3 text-sm">

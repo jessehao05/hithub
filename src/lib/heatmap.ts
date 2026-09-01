@@ -9,6 +9,14 @@ export const LEVEL_THRESHOLD_HOURS = [1, 2, 3];
 
 export const WEEKS = 53;
 
+/**
+ * The calendar the app thinks in. Every "what day is it" answer comes from
+ * here rather than the server clock, which is UTC on Vercel — otherwise an
+ * evening session would default to tomorrow's date and the grid would start a
+ * new day early. Change this one line to move zones.
+ */
+export const TIMEZONE = 'America/Chicago';
+
 export type Day = { date: string; minutes: number; level: number };
 
 export function levelForMinutes(minutes: number): number {
@@ -17,7 +25,19 @@ export function levelForMinutes(minutes: number): number {
   return 1 + LEVEL_THRESHOLD_HOURS.filter((t) => hours > t).length;
 }
 
-/** Local calendar date as 'YYYY-MM-DD'. `toISOString()` would convert through UTC. */
+/** Today's calendar date in TIMEZONE, as 'YYYY-MM-DD'. */
+export function today(): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const part = (type: string) => parts.find((p) => p.type === type)!.value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+/** Calendar date as 'YYYY-MM-DD'. `toISOString()` would convert through UTC. */
 function toDateString(d: Date): string {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -25,18 +45,27 @@ function toDateString(d: Date): string {
 }
 
 /**
+ * Midnight local to the running process. Only ever used as a cursor for adding
+ * days and reading back the parts, so the process zone cancels out.
+ */
+function fromDateString(date: string): Date {
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
  * The grid spans 53 whole weeks ending with the current one, so it always
  * starts on a Sunday and every column is a full week.
  */
-function firstSunday(today: Date): Date {
-  const start = new Date(today);
-  start.setDate(start.getDate() - today.getDay() - (WEEKS - 1) * 7);
+function firstSunday(today: string): Date {
+  const start = fromDateString(today);
+  start.setDate(start.getDate() - start.getDay() - (WEEKS - 1) * 7);
   return start;
 }
 
 /** Bounds to query, inclusive. Pass the same `today` used to build the weeks. */
-export function calendarRange(today: Date): { from: string; to: string } {
-  return { from: toDateString(firstSunday(today)), to: toDateString(today) };
+export function calendarRange(today: string): { from: string; to: string } {
+  return { from: toDateString(firstSunday(today)), to: today };
 }
 
 /**
@@ -45,16 +74,15 @@ export function calendarRange(today: Date): { from: string; to: string } {
  */
 export function buildWeeks(
   minutesByDate: Map<string, number>,
-  today: Date,
+  today: string,
 ): (Day | null)[][] {
-  const todayString = toDateString(today);
   const cursor = firstSunday(today);
 
   return Array.from({ length: WEEKS }, () =>
     Array.from({ length: 7 }, () => {
       const date = toDateString(cursor);
       cursor.setDate(cursor.getDate() + 1);
-      if (date > todayString) return null;
+      if (date > today) return null;
       const minutes = minutesByDate.get(date) ?? 0;
       return { date, minutes, level: levelForMinutes(minutes) };
     }),
