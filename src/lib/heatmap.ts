@@ -89,9 +89,47 @@ export function buildWeeks(
   );
 }
 
+/** Inclusive bounds of a 'YYYY-MM' month. */
+export function monthRange(month: string): { from: string; to: string } {
+  const [year, monthNumber] = month.split('-').map(Number);
+  // Day 0 of the next month is the last day of this one.
+  const lastDay = new Date(year, monthNumber, 0).getDate();
+  return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, '0')}` };
+}
+
+/** '2026-09' -> 'September'. The year is rendered separately and muted. */
+export function formatMonthName(month: string): string {
+  const [year, monthNumber] = month.split('-').map(Number);
+  return new Date(year, monthNumber - 1, 1).toLocaleDateString('en-US', { month: 'long' });
+}
+
+/** '2026-08-15' -> 'August 15'. */
+export function formatMonthDay(date: string): string {
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+/** '2026-09' -> 'September 2026'. */
+export function formatMonth(month: string): string {
+  const [year, monthNumber] = month.split('-').map(Number);
+  return new Date(year, monthNumber - 1, 1).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 /** 105 -> '1.75', 120 -> '2'. */
 export function formatHours(minutes: number): string {
   return String(Number((minutes / 60).toFixed(2)));
+}
+
+/** 105 -> '1.75 hours', 60 -> '1 hour'. */
+export function formatHoursLabel(minutes: number): string {
+  const value = formatHours(minutes);
+  return `${value} ${value === '1' ? 'hour' : 'hours'}`;
 }
 
 /** '2026-08-15' -> 'August 15, 2026', built from parts so nothing shifts. */

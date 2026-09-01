@@ -1,11 +1,21 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
-import { Heatmap } from '@/components/heatmap';
+import { Heatmap, HeatmapLegend } from '@/components/heatmap';
+import { TennisActivity } from '@/components/tennis-activity';
 import { getMinutesByDate, getUserByUsername } from '@/db/queries';
-import { buildWeeks, calendarRange, formatHours, today } from '@/lib/heatmap';
+import {
+  buildWeeks,
+  calendarRange,
+  formatHours,
+  formatMonth,
+  formatMonthDay,
+  formatMonthName,
+  monthRange,
+  today,
+} from '@/lib/heatmap';
 import { CURRENT_USERNAME as USERNAME } from '@/lib/user';
 
-export default async function Home() {
+export default async function Home({ searchParams }: PageProps<'/'>) {
   // Render per request. Without this the page prerenders at build time, which
   // would freeze both the activity data and `today` at whenever the build ran.
   await connection();
@@ -13,7 +23,7 @@ export default async function Home() {
   const user = await getUserByUsername(USERNAME);
   if (!user) {
     return (
-      <main className="mx-auto w-full max-w-4xl p-8">
+      <main className="mx-auto w-full max-w-5xl px-8 py-16">
         <p>
           No user named <strong>{USERNAME}</strong>. Run <code>npm run seed</code>.
         </p>
@@ -29,37 +39,65 @@ export default async function Home() {
 
   const totalMinutes = [...minutesByDate.values()].reduce((sum, m) => sum + m, 0);
 
+  // A day is selectable only if the grid is actually showing it.
+  const { day } = await searchParams;
+  const selected =
+    typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= from && day <= to
+      ? day
+      : undefined;
+
+  // The default month is the last month in the displayed range, which is the
+  // current month here and December once a past year can be selected. A
+  // selected day narrows the same component to a single-day range.
+  const defaultMonth = to.slice(0, 7);
+  const range = selected ? { from: selected, to: selected } : monthRange(defaultMonth);
+  const heading = selected
+    ? { primary: formatMonthDay(selected), secondary: `, ${selected.slice(0, 4)}` }
+    : { primary: formatMonthName(defaultMonth), secondary: ` ${defaultMonth.slice(0, 4)}` };
+
   return (
-    <main className="mx-auto w-full max-w-4xl p-8">
+    <main className="mx-auto w-full max-w-5xl px-8 py-16">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{user.username}</h1>
+        <h1 className="text-2xl">{user.username}</h1>
         <Link
           href="/new"
-          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium"
+          className="rounded-md border px-3 py-1.5 text-sm font-medium"
+          style={{ borderColor: 'var(--border)' }}
         >
           Log a session
         </Link>
       </div>
 
-      <section className="mt-6 rounded-md border border-border p-4">
-        <h2 className="mb-3 text-sm">
-          {formatHours(totalMinutes)} hours of tennis in the last year
-        </h2>
+      <h2 className="mt-10 text-base">
+        {formatHours(totalMinutes)} hours of tennis in the last year
+      </h2>
 
-        <Heatmap weeks={weeks} />
+      <div className="mt-2 rounded-md border p-4" style={{ borderColor: 'var(--border)' }}>
+        <Heatmap weeks={weeks} selected={selected} />
 
-        <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-muted">
-          Less
-          {[0, 1, 2, 3, 4].map((level) => (
-            <span
-              key={level}
-              className="size-[11px] rounded-[2px]"
-              style={{ background: `var(--heat-${level})` }}
-            />
-          ))}
-          More
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-xs text-muted">1 hour of tennis is one activity</span>
+          <HeatmapLegend />
         </div>
-      </section>
+      </div>
+
+      {selected && (
+        <Link
+          href="/"
+          scroll={false}
+          className="mt-8 inline-block text-sm text-muted hover:underline"
+        >
+          &larr; Back to {formatMonth(defaultMonth)}
+        </Link>
+      )}
+
+      <TennisActivity
+        userId={user.id}
+        from={range.from}
+        to={range.to}
+        heading={heading}
+        withSessions={Boolean(selected)}
+      />
     </main>
   );
 }
