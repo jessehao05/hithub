@@ -8,6 +8,7 @@ Technical plan for the idea in [overview.md](./overview.md). Decisions here are 
 - **Locations are stored but not displayed.** Captured on every activity so the data accumulates from day one; no location UI on the homepage in v1. The analysis comes later.
 - **Public profiles.** A user's grid is viewable at `/u/<username>` without logging in.
 - **Auth guards writes only.** Since reads are public, there is no permission logic on the display path — auth only protects logging and editing.
+- **The app has one fixed timezone**, `America/Chicago`, set in one constant. Not the server clock, which is UTC on Vercel. See [gotcha 3](#3-today-needs-a-timezone-too).
 
 ### Why this stack
 
@@ -37,9 +38,9 @@ activity_partners(activity_id, partner_id)
 
 **The column only pays off if the form collects it.** Storing location now is worth doing precisely because backfilling a year of "where was that session" from memory is impossible — but that only holds if the add-activity form has a location field from day one. A stored-but-never-populated column buys nothing. The homepage stays location-free; the *form* does not.
 
-## Two things that will bite
+## Three things that will bite
 
-Everything else in this app can be as simple as you like. These two are worth getting right up front.
+Everything else in this app can be as simple as you like. These are worth getting right up front. The third was found while building step 3 — it is the first one wearing a different hat.
 
 ### 1. Dates, not timestamps
 
@@ -81,6 +82,28 @@ ORDER BY hours DESC;
 ```
 
 Partners are a personal roster — rows you own, not user accounts. If a partner later turns out to have their own profile, that is one nullable `linked_user_id` added by `ALTER TABLE`. Safe to defer; do not add it now.
+
+### 3. "Today" needs a timezone too
+
+Storing `played_on` as a `DATE` removes timezones from the *stored history*. It does not answer "what day is it right now" — and that question is asked in two places: the last column of the grid, and the date the log form defaults to.
+
+`new Date()` on the server uses the server's clock. Locally that is your machine; on Vercel it is UTC. At 9:30 PM Central on Aug 31:
+
+| Zone | Sees the date as |
+|---|---|
+| America/Chicago | 2026-08-31 |
+| America/New_York | 2026-08-31 |
+| **UTC** | **2026-09-01** |
+
+So deployed, every evening session would default to tomorrow, and the grid would open a new column about five hours early.
+
+**Fix:** one `TIMEZONE` constant and a `today()` that converts through `Intl.DateTimeFormat` with that named zone. Nothing reads the ambient process clock for calendar purposes.
+
+Use the IANA name rather than a fixed `-5` offset — `America/Chicago` switches between CDT and CST on its own.
+
+> Preferred over setting a `TZ` environment variable. `TZ` works, but Node reads it at process start, so it has to be set in Vercel's project settings rather than `.env.local`, and nothing in the code shows that it depends on deployment config. An explicit conversion behaves the same on Windows and on a UTC box, with nothing to configure.
+
+Changing zones is a one-line edit because every caller funnels through `today()`. If both Central *and* Eastern users ever need to coexist, that becomes a `timezone` column on `users` threaded into the same function — contained, for the same reason.
 
 ## Heatmap rendering
 
@@ -129,7 +152,11 @@ All four fields are public — this is what `/u/<username>` shows to a logged-ou
 
 Build this as **one component taking a date range**, not two. Both states are the same shape — header, summary stat, optional session list — differing only in the range (a month vs. a single day) and whether the list renders. The summary stat is the same aggregate query either way.
 
-> **Open:** the default state is specified as the *current* month. If the grid later allows selecting a past year, "current month" stops being the obvious default for that view. Not a v1 problem — noting it so the range parameter isn't hardcoded to `now()`.
+**Which month is the default.** For the current view, the current month. For a past year, **December** — the last month of that year.
+
+Both are the same rule: *the default month is the last month in the displayed range.* Worth stating that way because it means no branch on "is this a past year" — the component takes a range and defaults to its final month, and both cases fall out. Hardcoding `now()` would special-case the common view and then need unpicking later.
+
+> Note that the grid is a rolling 53 weeks, not a calendar year, so the current view normally spans parts of two calendar years and its last month is simply the current one. A year selector would switch the range to a calendar year (Jan–Dec), where the same rule lands on December.
 
 ## Scaffolding steps
 
@@ -181,15 +208,47 @@ npx drizzle-kit push
 
 `src/db/seed.ts`, run with `npx tsx src/db/seed.ts`, inserting ~30 activities across the last year with 3–4 recurring partners, 2–3 recurring locations, and a few multi-session days to exercise the color buckets. Seed locations even though nothing displays them yet — it means the location analysis has data to build against the day it starts. Do this *before* any UI — it is what makes the heatmap and stats verifiable against numbers checkable by hand.
 
-**Do not install `next-auth` yet.** Hardcode a user id through build step 4 below. Auth is a clean bolt-on later; installing it early means fighting session plumbing before there are squares on a screen.
+**Do not install `next-auth` yet.** Hardcode a user id through build step 4 below — this ended up as `CURRENT_USERNAME` in `src/lib/user.ts`, so step 5 replaces one import rather than hunting constants. Auth is a clean bolt-on later; installing it early means fighting session plumbing before there are squares on a screen.
+
+## Built so far
+
+Build steps 1–3 are done and verified. Where the code lives:
+
+| Path | Role |
+|---|---|
+| `src/db/schema.ts` | The four tables |
+| `src/db/connect.ts` | Connection for CLI scripts — `tsx` does not load `.env.local`, so this calls `loadEnvFile` |
+| `src/db/index.ts` | Connection for the app — Next loads env itself, so this is a module-scope `db` |
+| `src/db/queries.ts` | Reads and writes used by pages and actions |
+| `src/db/seed.ts` / `report.ts` | `npm run seed`, `npm run report` |
+| `src/lib/heatmap.ts` | Grid math, buckets, `TIMEZONE`, `today()` — pure, no DB |
+| `src/lib/user.ts` | `CURRENT_USERNAME`, the single seam auth replaces at step 5 |
+| `src/components/heatmap.tsx` | The 53x7 grid |
+| `src/app/page.tsx` | Home: grid, year total, legend |
+| `src/app/new/` | Log form and its Server Action |
+
+Two connection files is deliberate, not duplication: the CLI one loads `.env.local` because `tsx` will not, and the app one must not.
+
+### Decisions made while building
+
+- **Pages render per request** via `await connection()` in each page. Without it the build prerenders them static, freezing both the data and `today` at build time. This Next version's docs prefer `connection()` over `export const dynamic = 'force-dynamic'` because it ties rendering to the incoming request.
+- **No Tailwind `dark:` utilities anywhere.** They key off `prefers-color-scheme: dark`, so a visitor with *no* preference would get the dark background with light-mode text. Colors go through `--muted`, `--border`, and `--heat-*` tokens instead, with light as the `prefers-color-scheme: light` override. This is what "dark is the default" actually requires.
+- **Logging is a separate `/new` page, not a modal.** The overview left this open. A page needs no client JS at all; a modal needs a client component and focus management. Convertible later — the form and action move unchanged.
+- **Partners: checkboxes for existing, plus a comma-separated field for new ones**, upserted against the `(user_id, name)` unique constraint. This is the anti-drift design from gotcha 2 actually working: retyping an existing name resolves to the existing row. Ids are deduped, since checking someone *and* typing them would otherwise violate the `activity_partners` primary key.
+- **Validation is HTML attributes plus server-side guards that throw.** No inline error UI, which would need `useActionState` and a client component. Fine for one user; the upgrade path is clear if it ever isn't.
+- **React Compiler: no.** It only transforms client components, and there is almost no client state here. One line to enable later if the grid ever gets hover or filtering.
+
+### Verified
+
+`npm run report` against the seed: 51.75 hours, 32 sessions, 27 days, buckets 6 / 13 / 4 / 4. The rendered grid matches all of it, `played_on` arrives as a string, and a real form POST created an activity on the right square with `location_id` populated and a mix of existing and newly created partners linked.
 
 ## Build order
 
 Each step has a check that either passes or doesn't.
 
-1. Schema + seed script → verify: aggregation queries return sane numbers
-2. Heatmap rendering from real data, no auth, hardcoded user → verify: squares and their shades match the seed data
-3. Add-activity form, including a location field → verify: a new row appears on the grid at the right date and shade, and its `location_id` is populated in the database even though nothing renders it
+1. ~~Schema + seed script~~ **done** → verified: aggregation queries return sane numbers
+2. ~~Heatmap rendering from real data, no auth, hardcoded user~~ **done** → verified: squares and their shades match the seed data
+3. ~~Add-activity form, including a location field~~ **done** → verified: a new row appears on the grid at the right date and shade, and its `location_id` is populated in the database even though nothing renders it
 4. "Tennis activity" section, default month state first, then day-selected state → verify: both states render from the same component, and the day totals match the squares above them
 5. Auth (`next-auth@beta` + `@auth/drizzle-adapter`, GitHub provider) + `user_id` scoping → verify: a second account sees an empty grid, and a logged-out visitor can still view `/u/<username>`
 6. Stats page → verify: totals match hand-computed values from the seed
