@@ -21,16 +21,25 @@ const cell = {
   outlineOffset: '-1px',
 } as const;
 
+/**
+ * A label is wider than the column it sits in, so a month owning fewer columns
+ * than this goes unlabelled rather than printing on top of the next month's
+ * label. Only the partial month the grid opens on is ever this narrow.
+ */
+const MIN_LABEL_COLUMNS = 2;
+
 /** A label sits above the first column whose week starts in a new month. */
 function monthLabels(weeks: (Day | null)[][]): (string | null)[] {
-  let previous = -1;
-  return weeks.map((week) => {
+  const months = weeks.map((week) => {
     const first = week.find((d) => d !== null);
-    if (!first) return null;
-    const month = Number(first.date.slice(5, 7)) - 1;
-    if (month === previous) return null;
-    previous = month;
-    return MONTHS[month];
+    return first ? Number(first.date.slice(5, 7)) - 1 : null;
+  });
+
+  return months.map((month, i) => {
+    if (month === null || month === months[i - 1]) return null;
+    let width = 1;
+    while (months[i + width] === month) width += 1;
+    return width >= MIN_LABEL_COLUMNS ? MONTHS[month] : null;
   });
 }
 
@@ -71,7 +80,9 @@ export function Heatmap({
           className="leading-none"
         >
           {monthLabels(weeks).map((label, i) => (
-            <div key={i}>{label}</div>
+            <div key={i} className="whitespace-nowrap">
+              {label}
+            </div>
           ))}
         </div>
 

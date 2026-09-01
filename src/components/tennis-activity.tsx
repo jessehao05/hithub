@@ -60,7 +60,9 @@ export async function TennisActivity({
               {sessions.map((session) => (
                 <li key={session.id}>
                   <div className="flex items-baseline gap-3">
-                    <h4 className="text-sm font-medium">{session.title}</h4>
+                    <h4 className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
+                      {session.title}
+                    </h4>
                     <span className="text-xs text-muted">
                       {formatHoursLabel(session.durationMinutes)}
                     </span>

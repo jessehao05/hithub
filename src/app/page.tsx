@@ -72,13 +72,21 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
         {formatHours(totalMinutes)} hours of tennis in the last year
       </h2>
 
-      <div className="mt-2 rounded-md border p-4" style={{ borderColor: 'var(--border)' }}>
-        <Heatmap weeks={weeks} selected={selected} />
+      {/* The card hugs the grid; the column beside it is the year selector's. */}
+      <div className="mt-2 flex items-start gap-6">
+        <div
+          className="min-w-0 rounded-md border p-4"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <Heatmap weeks={weeks} selected={selected} />
 
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs text-muted">1 hour of tennis is one activity</span>
-          <HeatmapLegend />
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-muted">1 hour of tennis is one activity</span>
+            <HeatmapLegend />
+          </div>
         </div>
+
+        <div className="w-24 shrink-0" />
       </div>
 
       {selected && (
