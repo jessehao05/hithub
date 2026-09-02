@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { formatDate, formatHoursLabel, type Day } from '@/lib/heatmap';
+import { homeHref } from '@/lib/links';
 
 const CELL = 10;
 const GAP = 3;
@@ -53,9 +54,12 @@ function title(day: Day): string {
 export function Heatmap({
   weeks,
   selected,
+  year,
 }: {
   weeks: (Day | null)[][];
   selected?: string;
+  /** Carried into every square's link so clicking one stays in this year. */
+  year?: number;
 }) {
   return (
     <div className="flex gap-2 overflow-x-auto text-xs text-muted">
@@ -94,7 +98,7 @@ export function Heatmap({
                 // component and a linked day is shareable.
                 <Link
                   key={`${w}-${d}`}
-                  href={day.date === selected ? '/' : `/?day=${day.date}`}
+                  href={homeHref({ year, day: day.date === selected ? undefined : day.date })}
                   scroll={false}
                   title={title(day)}
                   aria-label={title(day)}

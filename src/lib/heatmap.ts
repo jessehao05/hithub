@@ -53,40 +53,57 @@ function fromDateString(date: string): Date {
   return new Date(year, month - 1, day);
 }
 
-/**
- * The grid spans 53 whole weeks ending with the current one, so it always
- * starts on a Sunday and every column is a full week.
- */
-function firstSunday(today: string): Date {
-  const start = fromDateString(today);
-  start.setDate(start.getDate() - start.getDay() - (WEEKS - 1) * 7);
+export type Range = { from: string; to: string };
+
+/** Every column is a whole week, so both range ends round out to one. */
+function sundayOnOrBefore(date: string): Date {
+  const start = fromDateString(date);
+  start.setDate(start.getDate() - start.getDay());
   return start;
 }
 
-/** Bounds to query, inclusive. Pass the same `today` used to build the weeks. */
-export function calendarRange(today: string): { from: string; to: string } {
-  return { from: toDateString(firstSunday(today)), to: today };
+/**
+ * The default view: 53 whole weeks ending with the current one. `from` lands on
+ * a Sunday, so the grid opens on a full column.
+ */
+export function rollingRange(today: string): Range {
+  const start = sundayOnOrBefore(today);
+  start.setDate(start.getDate() - (WEEKS - 1) * 7);
+  return { from: toDateString(start), to: today };
+}
+
+/** Inclusive bounds of a calendar year, which is what a past year shows. */
+export function yearRange(year: number): Range {
+  return { from: `${year}-01-01`, to: `${year}-12-31` };
 }
 
 /**
- * 53 columns of 7 days, Sunday first. Days after today are null so the grid
- * stays rectangular while the current week renders as partial.
+ * Sunday-first columns of 7 days covering the range. Days outside it are null,
+ * so the grid stays rectangular while its first and last columns render as
+ * partial — the current week in the rolling view, the weeks a calendar year
+ * shares with its neighbours in a year view.
  */
 export function buildWeeks(
   minutesByDate: Map<string, number>,
-  today: string,
+  { from, to }: Range,
 ): (Day | null)[][] {
-  const cursor = firstSunday(today);
+  const cursor = sundayOnOrBefore(from);
+  const weeks: (Day | null)[][] = [];
 
-  return Array.from({ length: WEEKS }, () =>
-    Array.from({ length: 7 }, () => {
-      const date = toDateString(cursor);
-      cursor.setDate(cursor.getDate() + 1);
-      if (date > today) return null;
-      const minutes = minutesByDate.get(date) ?? 0;
-      return { date, minutes, level: levelForMinutes(minutes) };
-    }),
-  );
+  // A week whose Sunday is within the range holds at least one of its days.
+  while (toDateString(cursor) <= to) {
+    weeks.push(
+      Array.from({ length: 7 }, () => {
+        const date = toDateString(cursor);
+        cursor.setDate(cursor.getDate() + 1);
+        if (date < from || date > to) return null;
+        const minutes = minutesByDate.get(date) ?? 0;
+        return { date, minutes, level: levelForMinutes(minutes) };
+      }),
+    );
+  }
+
+  return weeks;
 }
 
 /** Inclusive bounds of a 'YYYY-MM' month. */

@@ -7,6 +7,21 @@ export async function getUserByUsername(username: string) {
   return user ?? null;
 }
 
+/**
+ * The year of the earliest activity, or null when there are none. The year
+ * selector spans this to the current year, so a year with nothing logged still
+ * gets an entry rather than a gap.
+ */
+export async function getFirstActivityYear(userId: string) {
+  const [row] = await db
+    .select({
+      year: sql<number | null>`extract(year from min(${activities.playedOn}))::int`,
+    })
+    .from(activities)
+    .where(eq(activities.userId, userId));
+  return row.year;
+}
+
 /** Minutes summed per calendar day, keyed by 'YYYY-MM-DD'. Bounds inclusive. */
 export async function getMinutesByDate(userId: string, from: string, to: string) {
   const rows = await db

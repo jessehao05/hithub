@@ -2,17 +2,20 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { Heatmap, HeatmapLegend } from '@/components/heatmap';
 import { TennisActivity } from '@/components/tennis-activity';
-import { getMinutesByDate, getUserByUsername } from '@/db/queries';
+import { YearSelector } from '@/components/year-selector';
+import { getFirstActivityYear, getMinutesByDate, getUserByUsername } from '@/db/queries';
 import {
   buildWeeks,
-  calendarRange,
   formatHours,
   formatMonth,
   formatMonthDay,
   formatMonthName,
   monthRange,
+  rollingRange,
   today,
+  yearRange,
 } from '@/lib/heatmap';
+import { homeHref } from '@/lib/links';
 import { CURRENT_USERNAME as USERNAME } from '@/lib/user';
 
 export default async function Home({ searchParams }: PageProps<'/'>) {
@@ -33,14 +36,29 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
 
   // One `today` for both, so the queried range and the rendered grid can't disagree.
   const currentDay = today();
-  const { from, to } = calendarRange(currentDay);
+  const currentYear = Number(currentDay.slice(0, 4));
+  const { day, year } = await searchParams;
+
+  // Every year from the first logged session to now, newest first. The newest
+  // is the rolling view rather than a calendar year, so selecting it is the
+  // same as selecting nothing.
+  const firstYear = (await getFirstActivityYear(user.id)) ?? currentYear;
+  const years = Array.from(
+    { length: Math.max(currentYear - firstYear, 0) + 1 },
+    (_, i) => currentYear - i,
+  );
+  const selectedYear =
+    typeof year === 'string' && years.includes(Number(year)) && Number(year) !== currentYear
+      ? Number(year)
+      : undefined;
+
+  const { from, to } = selectedYear ? yearRange(selectedYear) : rollingRange(currentDay);
   const minutesByDate = await getMinutesByDate(user.id, from, to);
-  const weeks = buildWeeks(minutesByDate, currentDay);
+  const weeks = buildWeeks(minutesByDate, { from, to });
 
   const totalMinutes = [...minutesByDate.values()].reduce((sum, m) => sum + m, 0);
 
   // A day is selectable only if the grid is actually showing it.
-  const { day } = await searchParams;
   const selected =
     typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= from && day <= to
       ? day
@@ -69,16 +87,17 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
       </div>
 
       <h2 className="mt-10 text-base">
-        {formatHours(totalMinutes)} hours of tennis in the last year
+        {formatHours(totalMinutes)} hours of tennis{' '}
+        {selectedYear ? `in ${selectedYear}` : 'in the last year'}
       </h2>
 
-      {/* The card hugs the grid; the column beside it is the year selector's. */}
-      <div className="mt-2 flex items-start gap-6">
+      {/* The card hugs the grid; the year selector sits flush with the header's right edge. */}
+      <div className="mt-2 flex items-start justify-between gap-6">
         <div
           className="min-w-0 rounded-md border p-4"
           style={{ borderColor: 'var(--border)' }}
         >
-          <Heatmap weeks={weeks} selected={selected} />
+          <Heatmap weeks={weeks} selected={selected} year={selectedYear} />
 
           <div className="mt-2 flex items-center justify-between">
             <span className="text-xs text-muted">1 hour of tennis is one activity</span>
@@ -86,12 +105,12 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
           </div>
         </div>
 
-        <div className="w-24 shrink-0" />
+        <YearSelector years={years} selected={selectedYear} />
       </div>
 
       {selected && (
         <Link
-          href="/"
+          href={homeHref({ year: selectedYear })}
           scroll={false}
           className="mt-8 inline-block text-sm text-muted hover:underline"
         >
