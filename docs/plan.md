@@ -219,13 +219,12 @@ Build steps 1–3 are done and verified. Where the code lives:
 | `src/db/schema.ts` | The four tables |
 | `src/db/connect.ts` | Connection for CLI scripts — `tsx` does not load `.env.local`, so this calls `loadEnvFile` |
 | `src/db/index.ts` | Connection for the app — Next loads env itself, so this is a module-scope `db` |
-| `src/db/queries.ts` | Reads and writes used by pages and actions |
+| `src/db/queries.ts` | Reads used by pages |
 | `src/db/seed.ts` / `report.ts` | `npm run seed`, `npm run report` |
 | `src/lib/heatmap.ts` | Grid math, buckets, `TIMEZONE`, `today()` — pure, no DB |
 | `src/lib/user.ts` | `CURRENT_USERNAME`, the single seam auth replaces at step 5 |
 | `src/components/heatmap.tsx` | The 53x7 grid |
 | `src/app/page.tsx` | Home: grid, year total, legend |
-| `src/app/new/` | Log form and its Server Action |
 
 Two connection files is deliberate, not duplication: the CLI one loads `.env.local` because `tsx` will not, and the app one must not.
 
@@ -233,9 +232,7 @@ Two connection files is deliberate, not duplication: the CLI one loads `.env.loc
 
 - **Pages render per request** via `await connection()` in each page. Without it the build prerenders them static, freezing both the data and `today` at build time. This Next version's docs prefer `connection()` over `export const dynamic = 'force-dynamic'` because it ties rendering to the incoming request.
 - **No Tailwind `dark:` utilities anywhere.** They key off `prefers-color-scheme: dark`, so a visitor with *no* preference would get the dark background with light-mode text. Colors go through `--muted`, `--border`, and `--heat-*` tokens instead, with light as the `prefers-color-scheme: light` override. This is what "dark is the default" actually requires.
-- **Logging is a separate `/new` page, not a modal.** The overview left this open. A page needs no client JS at all; a modal needs a client component and focus management. Convertible later — the form and action move unchanged.
-- **Partners: checkboxes for existing, plus a comma-separated field for new ones**, upserted against the `(user_id, name)` unique constraint. This is the anti-drift design from gotcha 2 actually working: retyping an existing name resolves to the existing row. Ids are deduped, since checking someone *and* typing them would otherwise violate the `activity_partners` primary key.
-- **Validation is HTML attributes plus server-side guards that throw.** No inline error UI, which would need `useActionState` and a client component. Fine for one user; the upgrade path is clear if it ever isn't.
+- **Notion is the only input; the `/new` log form was removed.** Sessions are entered in a Notion database and synced in. Keeping a second entry path would mean two sources of truth, and on a public deployment the form's Server Action would accept writes from anyone.
 - **React Compiler: no.** It only transforms client components, and there is almost no client state here. One line to enable later if the grid ever gets hover or filtering.
 
 ### Verified

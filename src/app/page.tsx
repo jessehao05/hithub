@@ -75,16 +75,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-8 py-16">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl">{user.username}</h1>
-        <Link
-          href="/new"
-          className="rounded-md border px-3 py-1.5 text-sm font-medium"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          Log a session
-        </Link>
-      </div>
+      <h1 className="text-2xl">{user.username}</h1>
 
       <h2 className="mt-10 text-base">
         {formatHours(totalMinutes)} hours of tennis{' '}
