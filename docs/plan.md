@@ -6,8 +6,7 @@ Technical plan for the idea in [overview.md](./overview.md). Decisions here are 
 
 - **Stack:** Next.js (App Router) + TypeScript + Postgres (Neon) + Drizzle + Tailwind, deployed on Vercel.
 - **Locations are stored but not displayed.** Captured on every activity so the data accumulates from day one; no location UI on the homepage in v1. The analysis comes later.
-- **Public profiles.** A user's grid is viewable at `/u/<username>` without logging in.
-- **Auth guards writes only.** Since reads are public, there is no permission logic on the display path — auth only protects logging and editing.
+- **One user.** A deployment shows a single user's data, set by `CURRENT_USERNAME`. No accounts, no login, no per-user URLs.
 - **The app has one fixed timezone**, `America/Chicago`, set in one constant. Not the server clock, which is UTC on Vercel. See [gotcha 3](#3-today-needs-a-timezone-too).
 
 ### Why this stack
@@ -16,7 +15,7 @@ The centerpiece is a visual (the heatmap and the day detail panel), which is Rea
 
 ## Scope
 
-Feasibility is high — this is a small app. One table of activities, a login, a form, and a calendar grid. Every stat in the overview is a single `GROUP BY` over a few hundred rows. No real-time, no scale concerns, no third-party integrations in v1.
+Feasibility is high — this is a small app. One table of activities and a calendar grid. Every stat in the overview is a single `GROUP BY` over a few hundred rows. No real-time, no scale concerns, no third-party integrations in v1.
 
 **Deferred:** Strava / Google Calendar import, export, social features, mobile app. The overview already notes that importing still bottoms out in manual entry — so manual entry *is* the product, and import must not shape the v1 architecture.
 
@@ -30,7 +29,7 @@ activities(id, user_id, played_on DATE, duration_minutes INT, title, video_url, 
 activity_partners(activity_id, partner_id)
 ```
 
-`username` exists so public profile URLs resolve. `duration_minutes` rather than hours so a 90-minute session isn't rounded into a lie — "contributions" is `duration_minutes / 60`, computed at read time. Never store a derived count.
+`username` is how the app finds its one user (`CURRENT_USERNAME`), and is shown as the page heading. `duration_minutes` rather than hours so a 90-minute session isn't rounded into a lie — "contributions" is `duration_minutes / 60`, computed at read time. Never store a derived count.
 
 `title` is the commit-message equivalent: a short one-line label for the session, replacing the "short description" from the original overview. It is **required** — commit messages are, and a session with no label is hard to scan in a list. Long-form notes are not a v1 field; if they're wanted later, add a nullable `body` alongside it, mirroring a commit's subject/body split.
 
@@ -67,7 +66,6 @@ The tempting version is a text column on the activity: `partners: "Alex, Sam"`. 
 - **The key stat breaks.** "Who have I played the most with" becomes string splitting that assumes every name was typed identically. `Alex`, `alex`, `Alex Chen`, and `Alex ` are four different people to a `GROUP BY`. Over a year of logging, drift is guaranteed.
 - **No autocomplete.** A table lets the form offer people already played before — which is what *prevents* the drift. The schema choice and the input UX are the same decision.
 - **Renames rewrite history.** A name change becomes string surgery across every row.
-- **It blocks public profiles.** "Played with Alex" should eventually link to Alex's grid. A comma-separated string can't hold that; a foreign key can.
 
 **Fix:** a `partners` table plus a join table, since the relationship is many-to-many — one session has several partners, one partner appears in many sessions. The headline stat then becomes boring, which is the goal:
 
@@ -81,7 +79,7 @@ GROUP BY p.name
 ORDER BY hours DESC;
 ```
 
-Partners are a personal roster — rows you own, not user accounts. If a partner later turns out to have their own profile, that is one nullable `linked_user_id` added by `ALTER TABLE`. Safe to defer; do not add it now.
+Partners are a personal roster — rows you own, not user accounts.
 
 ### 3. "Today" needs a timezone too
 
@@ -127,7 +125,7 @@ Note that the two ramps run in opposite directions: in dark theme intensity *bri
 
 > The site defaulting to dark does not mean assuming dark. Respect `prefers-color-scheme` for visitors who have set a light preference, with dark as the fallback when no preference is expressed.
 
-> Note that GitHub buckets by quartile relative to your own max, not by fixed thresholds. Fixed thresholds are the better choice here: hours are an absolute, meaningful unit, whereas quartiles would paint a light week in dark green and make the grid non-comparable across time and between profiles.
+> Note that GitHub buckets by quartile relative to your own max, not by fixed thresholds. Fixed thresholds are the better choice here: hours are an absolute, meaningful unit, whereas quartiles would paint a light week in dark green and make the grid non-comparable across time.
 
 ## "Tennis activity" section
 
@@ -146,7 +144,7 @@ Each session row:
 | **Partners** | below the title | — |
 | **YouTube URL** | below the title, only when present | — |
 
-All four fields are public — this is what `/u/<username>` shows to a logged-out visitor, with no separate private variant of the panel. One rendering path, so a public and private version can't drift apart.
+All four fields are shown to every visitor, with no separate private variant of the panel. One rendering path, so a public and private version can't drift apart.
 
 **Location is deliberately absent from this list.** It is recorded on every activity but rendered nowhere in v1. When the location analysis is built, its visibility is a fresh decision rather than an inherited one — a public log of which courts someone frequents and when is more sensitive than partner names, so it may belong on the owner's view only, even though everything else here is public.
 
@@ -208,7 +206,7 @@ npx drizzle-kit push
 
 `src/db/seed.ts`, run with `npx tsx src/db/seed.ts`, inserting ~30 activities across the last year with 3–4 recurring partners, 2–3 recurring locations, and a few multi-session days to exercise the color buckets. Seed locations even though nothing displays them yet — it means the location analysis has data to build against the day it starts. Do this *before* any UI — it is what makes the heatmap and stats verifiable against numbers checkable by hand.
 
-**Do not install `next-auth` yet.** Hardcode a user id through build step 4 below — this ended up as `CURRENT_USERNAME` in `src/lib/user.ts`, so step 5 replaces one import rather than hunting constants. Auth is a clean bolt-on later; installing it early means fighting session plumbing before there are squares on a screen.
+**No auth.** The one user is hardcoded as `CURRENT_USERNAME` in `src/lib/user.ts`, and every place that needs the user imports it from there.
 
 ## Built so far
 
@@ -222,7 +220,7 @@ Build steps 1–3 are done and verified. Where the code lives:
 | `src/db/queries.ts` | Reads used by pages |
 | `src/db/seed.ts` / `report.ts` | `npm run seed`, `npm run report` |
 | `src/lib/heatmap.ts` | Grid math, buckets, `TIMEZONE`, `today()` — pure, no DB |
-| `src/lib/user.ts` | `CURRENT_USERNAME`, the single seam auth replaces at step 5 |
+| `src/lib/user.ts` | `CURRENT_USERNAME`, the one user the app shows |
 | `src/components/heatmap.tsx` | The 53x7 grid |
 | `src/app/page.tsx` | Home: grid, year total, legend |
 
@@ -247,8 +245,7 @@ Each step has a check that either passes or doesn't.
 2. ~~Heatmap rendering from real data, no auth, hardcoded user~~ **done** → verified: squares and their shades match the seed data
 3. ~~Add-activity form, including a location field~~ **done** → verified: a new row appears on the grid at the right date and shade, and its `location_id` is populated in the database even though nothing renders it
 4. "Tennis activity" section, default month state first, then day-selected state → verify: both states render from the same component, and the day totals match the squares above them
-5. Auth (`next-auth@beta` + `@auth/drizzle-adapter`, GitHub provider) + `user_id` scoping → verify: a second account sees an empty grid, and a logged-out visitor can still view `/u/<username>`
-6. Stats page → verify: totals match hand-computed values from the seed
-7. Activity history page — every session in a chosen timeframe, GitHub's commits list → verify: the session rows reuse the same component as the tennis activity section, and the range total matches the grid
+5. Stats page → verify: totals match hand-computed values from the seed
+6. Activity history page — every session in a chosen timeframe, GitHub's commits list → verify: the session rows reuse the same component as the tennis activity section, and the range total matches the grid
 
-Steps 1–4 produce something genuinely usable solo. Step 5 is what turns it into a product. Step 7 is mostly free if step 4 was built range-parameterized as described above — it is the same component over a wider range.
+Steps 1–4 produce something genuinely usable. Step 6 is mostly free if step 4 was built range-parameterized as described above — it is the same component over a wider range.
