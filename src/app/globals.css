@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/* Dark is the default theme, including when no preference is expressed.
+   Values follow GitHub's dark palette. */
+:root {
+  --background: #0d1117;
+  --foreground: #e6edf3;
+  --muted: #9198a1;
+  --border: #3d444d;
+  --node: #30363d;
+  --accent: #4493f8;
+  /* The hairline on every heatmap cell, including empty ones. */
+  --cell-border: rgba(255, 255, 255, 0.05);
+
+  --heat-0: #161b22;
+  --heat-1: #0e4429;
+  --heat-2: #006d32;
+  --heat-3: #26a641;
+  --heat-4: #39d353;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #ffffff;
+    --foreground: #1f2328;
+    --muted: #59636e;
+    --border: #d1d9e0;
+    --node: #d1d9e0;
+    --accent: #0969da;
+    --cell-border: rgba(27, 31, 35, 0.06);
+
+    --heat-0: #ebedf0;
+    --heat-1: #9be9a8;
+    --heat-2: #40c463;
+    --heat-3: #30a14e;
+    --heat-4: #216e39;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+}
+
+/* GitHub's own stacks, so the app renders in the same system faces it does. */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica,
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
