@@ -1,6 +1,6 @@
 # Architecture
 
-The handoff document: how HitHub fits together, how to run and change it, and what is unfinished. For the reasoning behind individual decisions in more depth, see [plan.md](./plan.md). For the product idea, see [overview.md](./overview.md).
+How HitHub fits together, how to run and change it, and what is unfinished. For the reasoning behind individual decisions in more depth, see [plan.md](./plan.md). For the product idea, see [overview.md](./overview.md).
 
 ## What it is
 
