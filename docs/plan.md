@@ -7,7 +7,7 @@ Technical plan for the idea in [overview.md](./overview.md). Decisions here are 
 - **Stack:** Next.js (App Router) + TypeScript + Notion API (`@notionhq/client`) + Tailwind, deployed on Vercel.
 - **Notion is the data store.** Activities are rows in a Notion database ([notion-db.md](./notion-db.md)), read through the API on each request. There is no database of our own — no Postgres, no ORM, no migrations.
 - **Locations are stored but not displayed.** Captured on every activity so the data accumulates from day one; no location UI on the homepage in v1. The analysis comes later.
-- **One user.** A deployment shows a single user's data: whichever Notion database `NOTION_DATA_SOURCE_ID` points at, headed by `CURRENT_USERNAME`. No accounts, no per-user URLs.
+- **One user.** A deployment shows a single user's data: whichever Notion database `NOTION_DATA_SOURCE_ID` points at. No accounts, no per-user URLs.
 - **Restricted by default.** Visitors see title, date, duration, and video. Partners and location are shown only to viewers who have entered `VIEW_PASSWORD` at `/unlock`. See [the tennis activity section](#tennis-activity-section).
 - **The app has one fixed timezone**, `America/Chicago`, set in one constant. Not the server clock, which is UTC on Vercel. See [gotcha 3](#3-today-needs-a-timezone-too).
 
@@ -196,7 +196,7 @@ VIEW_PASSWORD="..."                # unlocks partners at /unlock; unset means no
 
 It is a *data source* ID, not a database ID: `@notionhq/client` v5 queries data sources, and one Notion database can hold several.
 
-**No auth beyond the view password.** The one user is hardcoded as `CURRENT_USERNAME` in `src/lib/user.ts`, and every place that needs the user imports it from there.
+**No auth beyond the view password.**
 
 ## Built so far
 
@@ -209,7 +209,6 @@ Build steps 1, 2, and 4 are done, now reading from Notion. Where the code lives:
 | `src/lib/activities.ts` | The `Activity` type and the aggregations — pure, no Notion |
 | `src/lib/heatmap.ts` | Grid math, buckets, `TIMEZONE`, `today()` — pure, no data access |
 | `src/lib/links.ts` | `homeHref()`, the one builder for home-page URLs |
-| `src/lib/user.ts` | `CURRENT_USERNAME`, the one user the app shows |
 | `src/components/heatmap.tsx` | The 53x7 grid and its legend |
 | `src/components/tennis-activity.tsx` | The tennis activity section, both states |
 | `src/components/year-selector.tsx` | The year rail |

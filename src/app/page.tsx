@@ -17,7 +17,6 @@ import {
   yearRange,
 } from '@/lib/heatmap';
 import { homeHref } from '@/lib/links';
-import { CURRENT_USERNAME as USERNAME } from '@/lib/user';
 
 export default async function Home({ searchParams }: PageProps<'/'>) {
   // Render per request. Without this the page prerenders at build time, which
@@ -68,7 +67,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-8 py-16">
-      <h1 className="text-2xl">{USERNAME}</h1>
+      <h1 className="text-2xl">hithub</h1>
 
       <h2 className="mt-10 text-base">
         {formatHours(totalMinutes)} hours of tennis{' '}
