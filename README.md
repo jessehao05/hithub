@@ -2,6 +2,9 @@
 
 GitHub's contribution graph, but for tennis. One hour of tennis counts as one contribution.
 
+## Screenshot
+<img width="2256" height="1344" alt="hithub" src="https://github.com/user-attachments/assets/9f2358c5-4027-4f2d-9ae0-e005c8ec2bb8" />
+
 ## Why
 
 I wanted to visualize my tennis activity: how often I play, when, and with whom. I also like how GitHub's style.
