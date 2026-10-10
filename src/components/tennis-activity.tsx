@@ -1,4 +1,4 @@
-import { getRangeSummary, getSessionsInRange } from '@/db/queries';
+import { rangeSummary, sessionsInRange, type Activity } from '@/lib/activities';
 import { formatHoursLabel } from '@/lib/heatmap';
 
 /**
@@ -6,22 +6,23 @@ import { formatHoursLabel } from '@/lib/heatmap';
  * range: a month with no list by default, a single day with its sessions when
  * a square is selected. Both states are the same summary query.
  */
-export async function TennisActivity({
-  userId,
+export function TennisActivity({
+  activities,
   from,
   to,
   heading,
   withSessions,
 }: {
-  userId: string;
+  /** Already filtered for this viewer by `getActivities()`. */
+  activities: Activity[];
   from: string;
   to: string;
   /** Rendered as bold primary + muted secondary, like GitHub's "August 2026". */
   heading: { primary: string; secondary: string };
   withSessions: boolean;
 }) {
-  const summary = await getRangeSummary(userId, from, to);
-  const sessions = withSessions ? await getSessionsInRange(userId, from, to) : [];
+  const summary = rangeSummary(activities, from, to);
+  const sessions = withSessions ? sessionsInRange(activities, from, to) : [];
 
   return (
     <section className="mt-12">
@@ -68,7 +69,9 @@ export async function TennisActivity({
                     </span>
                   </div>
                   <div className="mt-1 pl-3 text-xs text-muted">
-                    {session.partners.length > 0 && <p>with: {session.partners.join(', ')}</p>}
+                    {session.partners && session.partners.length > 0 && (
+                      <p>with: {session.partners.join(', ')}</p>
+                    )}
                     {session.videoUrl && (
                       <p>
                         YT:{' '}

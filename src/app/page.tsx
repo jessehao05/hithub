@@ -3,7 +3,8 @@ import { connection } from 'next/server';
 import { Heatmap, HeatmapLegend } from '@/components/heatmap';
 import { TennisActivity } from '@/components/tennis-activity';
 import { YearSelector } from '@/components/year-selector';
-import { getFirstActivityYear, getMinutesByDate, getUserByUsername } from '@/db/queries';
+import { getActivities } from '@/data/activities';
+import { firstActivityYear, minutesByDate as getMinutesByDate } from '@/lib/activities';
 import {
   buildWeeks,
   formatHours,
@@ -23,16 +24,8 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   // would freeze both the activity data and `today` at whenever the build ran.
   await connection();
 
-  const user = await getUserByUsername(USERNAME);
-  if (!user) {
-    return (
-      <main className="mx-auto w-full max-w-5xl px-8 py-16">
-        <p>
-          No user named <strong>{USERNAME}</strong>. Run <code>npm run seed</code>.
-        </p>
-      </main>
-    );
-  }
+  // Fetched once; every number on the page is computed from this list.
+  const activities = await getActivities();
 
   // One `today` for both, so the queried range and the rendered grid can't disagree.
   const currentDay = today();
@@ -42,7 +35,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
   // Every year from the first logged session to now, newest first. The newest
   // is the rolling view rather than a calendar year, so selecting it is the
   // same as selecting nothing.
-  const firstYear = (await getFirstActivityYear(user.id)) ?? currentYear;
+  const firstYear = firstActivityYear(activities) ?? currentYear;
   const years = Array.from(
     { length: Math.max(currentYear - firstYear, 0) + 1 },
     (_, i) => currentYear - i,
@@ -53,7 +46,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
       : undefined;
 
   const { from, to } = selectedYear ? yearRange(selectedYear) : rollingRange(currentDay);
-  const minutesByDate = await getMinutesByDate(user.id, from, to);
+  const minutesByDate = getMinutesByDate(activities, from, to);
   const weeks = buildWeeks(minutesByDate, { from, to });
 
   const totalMinutes = [...minutesByDate.values()].reduce((sum, m) => sum + m, 0);
@@ -75,7 +68,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-8 py-16">
-      <h1 className="text-2xl">{user.username}</h1>
+      <h1 className="text-2xl">{USERNAME}</h1>
 
       <h2 className="mt-10 text-base">
         {formatHours(totalMinutes)} hours of tennis{' '}
@@ -110,7 +103,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
       )}
 
       <TennisActivity
-        userId={user.id}
+        activities={activities}
         from={range.from}
         to={range.to}
         heading={heading}
