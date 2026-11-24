@@ -67,9 +67,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-8 py-16">
-      <h1 className="text-2xl">hithub</h1>
-
-      <h2 className="mt-10 text-base">
+      <h2 className="text-base">
         {formatHours(totalMinutes)} hours of tennis{' '}
         {selectedYear ? `in ${selectedYear}` : 'in the last year'}
       </h2>

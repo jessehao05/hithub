@@ -9,6 +9,8 @@
   --border: #3d444d;
   --node: #30363d;
   --accent: #4493f8;
+  --header: #010409;
+  --tab-active: #f78166;
   /* The hairline on every heatmap cell, including empty ones. */
   --cell-border: rgba(255, 255, 255, 0.05);
 
@@ -27,6 +29,8 @@
     --border: #d1d9e0;
     --node: #d1d9e0;
     --accent: #0969da;
+    --header: #f6f8fa;
+    --tab-active: #fd8c73;
     --cell-border: rgba(27, 31, 35, 0.06);
 
     --heat-0: #ebedf0;
@@ -57,4 +61,87 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* Rendered markdown on the Journey page, at GitHub's markdown scale.
+   Tailwind's reset strips all of these, so each element is restyled here. */
+.markdown {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown :is(h1, h2, h3, h4, h5, h6) {
+  margin: 24px 0 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  scroll-margin-top: 16px;
+}
+.markdown h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+.markdown h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+.markdown h3 {
+  font-size: 1.25em;
+}
+.markdown h4 {
+  font-size: 1em;
+}
+.markdown h5 {
+  font-size: 0.875em;
+}
+.markdown h6 {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.markdown :is(p, ul, ol, blockquote, pre) {
+  margin: 0 0 16px;
+}
+.markdown :is(ul, ol) {
+  padding-left: 2em;
+}
+.markdown ul {
+  list-style: disc;
+}
+.markdown ol {
+  list-style: decimal;
+}
+.markdown a {
+  color: var(--accent);
+}
+.markdown a:hover {
+  text-decoration: underline;
+}
+.markdown blockquote {
+  padding: 0 1em;
+  color: var(--muted);
+  border-left: 0.25em solid var(--border);
+}
+.markdown code {
+  font-family: var(--font-mono);
+  font-size: 85%;
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  background: var(--node);
+}
+.markdown pre {
+  padding: 16px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--heat-0);
+}
+.markdown pre code {
+  padding: 0;
+  background: transparent;
+}
+.markdown hr {
+  margin: 24px 0;
+  border-top: 1px solid var(--border);
 }
