@@ -62,7 +62,7 @@ export function Heatmap({
   year?: number;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto text-xs text-muted">
+    <div className="heatmap-scroll flex gap-2 overflow-x-auto text-xs text-muted">
       <div
         className="grid shrink-0"
         style={{

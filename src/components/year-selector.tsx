@@ -15,7 +15,8 @@ export function YearSelector({
   selected?: number;
 }) {
   return (
-    <nav className="flex w-24 shrink-0 flex-col gap-1 text-sm">
+    // Hidden at 784px and below. Tailwind's `max-[784px]` would be `width < 784px`, hence the raw query.
+    <nav className="flex w-24 shrink-0 flex-col gap-1 text-sm [@media(max-width:784px)]:hidden">
       {years.map((year, i) => {
         const active = selected === undefined ? i === 0 : year === selected;
         return (

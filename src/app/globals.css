@@ -63,6 +63,30 @@ body {
   font-family: var(--font-sans);
 }
 
+/* The heatmap scrolls sideways when it can't fit. A styled scrollbar is always
+   drawn, unlike the overlay one macOS shows only mid-scroll, so the overflow is
+   visible. Chrome ignores these pseudo-elements once `scrollbar-color` is set,
+   which is why that is scoped to Firefox. */
+.heatmap-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.heatmap-scroll::-webkit-scrollbar-thumb {
+  background: var(--node);
+  border-radius: 4px;
+}
+.heatmap-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.heatmap-scroll {
+  padding-bottom: 4px;
+}
+@supports (-moz-appearance: none) {
+  .heatmap-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--node) transparent;
+  }
+}
+
 /* Rendered markdown on the Journey page, at GitHub's markdown scale.
    Tailwind's reset strips all of these, so each element is restyled here. */
 .markdown {

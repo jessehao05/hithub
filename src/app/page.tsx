@@ -80,7 +80,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
         >
           <Heatmap weeks={weeks} selected={selected} year={selectedYear} />
 
-          <div className="mt-2 flex items-center justify-between">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs text-muted">1 hour of tennis is one activity</span>
             <HeatmapLegend />
           </div>
