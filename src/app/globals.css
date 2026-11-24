@@ -9,6 +9,8 @@
   --border: #3d444d;
   --node: #30363d;
   --accent: #4493f8;
+  --header: #010409;
+  --tab-active: #f78166;
   /* The hairline on every heatmap cell, including empty ones. */
   --cell-border: rgba(255, 255, 255, 0.05);
 
@@ -27,6 +29,8 @@
     --border: #d1d9e0;
     --node: #d1d9e0;
     --accent: #0969da;
+    --header: #f6f8fa;
+    --tab-active: #fd8c73;
     --cell-border: rgba(27, 31, 35, 0.06);
 
     --heat-0: #ebedf0;
